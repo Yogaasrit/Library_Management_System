@@ -168,7 +168,7 @@ public class Library {
 	public static void main(String[] args) {
 		int userType;
 		int option;
-		System.out.println("Welcome to library");
+		System.out.println("Welcome to library!!!");
 		System.out.println("Please choose the type of user");
 		System.out.println("1. Admin \n2. User");
 		userType = sc.nextInt();
