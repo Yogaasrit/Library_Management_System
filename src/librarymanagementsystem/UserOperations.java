@@ -15,6 +15,7 @@ public class UserOperations {
 	private PreparedStatement ps;
 	Scanner sc = new Scanner(System.in);
 
+	// Constructor
 	public UserOperations(User user, Connection con, PreparedStatement ps) {
 		super();
 		this.user = user;
@@ -22,6 +23,7 @@ public class UserOperations {
 		this.ps = ps;
 	}
 
+	// Displays the useroperations menu
 	public void userOperations() {
 		int option = 7;
 		do {
@@ -32,180 +34,249 @@ public class UserOperations {
 			System.out.println("4. Return Book");
 			System.out.println("5. View Fine");
 			System.out.println("6. Exit");
+			System.out.println("Enter the option : ");
 			option = sc.nextInt();
-			switch (option) {
-			case 1:
-					new BookOperations(con,ps,user).viewOperations();
-					break;
-			case 2:
-				try {
+			try {
+				switch (option) {
+				case 1:
+						new BookOperations(con,ps,user).viewOperations();
+						// view operations from bookoperations is called.
+						break;
+				case 2:
 					placeOrder();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
-				break;
-			case 3:
-				try {
+					// Borrow book
+					break;
+				case 3:
 					viewBorrowedBooks();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
-				break;
-			case 4:
-				try {
+					// Displays the borrowed book.
+					break;
+				case 4:
 					returnBook();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
-				break;
-			case 5:
-				try {
+					// Return the borrowed book
+					break;
+				case 5:
 					viewFine();
-				} catch (SQLException e) {
-					e.printStackTrace();
+					// Calculates fine
+					break;
+				case 6:
+					// Returns back
+					System.out.println("Hope you enjoyed!!");
+					break;
+				default:
+					System.out.println("Invalid Operations");
 				}
-				break;
-			case 6:
-				break;
-			default:
-				System.out.println("Invalid Operations");
+			}catch(SQLException e) {
+				System.out.println("SQL Exception Occured, Contact the Admin!");
+				e.printStackTrace();
 			}
 		} while (option != 6);
 	}
 	
-	private void placeOrder() throws SQLException {
-		// quantity should not be negative
+	public void placeOrder() throws SQLException {
+		System.out.println("PLACE ORDER");
 		boolean isOrderPlaced = false;
 		do {		
-		int availableBooks = 0;
-		System.out.println("Enter the book Id: ");
-		int bookId = sc.nextInt();
-		String searchBookByIdQuery = "select bookName, bookCount from books where bookId = ?";
-		ps = con.prepareStatement(searchBookByIdQuery);
-		ps.setInt(1, bookId);
-		ResultSet rs = ps.executeQuery(); 
-		int result = 0;
-		if(rs.next()) {
-			System.out.println(rs.getString("bookName") +"\t\t Count: "+rs.getInt("bookCount"));
-			availableBooks = rs.getInt("bookCount");	
-			if(availableBooks > 0)
-			{
-				do {				
-					System.out.println("Enter the book quantity");
-					int quantity = sc.nextInt();
-					if(quantity <= availableBooks && quantity > 0) {
-						isOrderPlaced = true;
-						String bookCountUpdateQuery = "UPDATE books SET bookCount = "
-													+ "? WHERE bookId = ? ";
-						ps = con.prepareStatement(bookCountUpdateQuery);
-						ps.setInt(1, availableBooks - quantity);
-						ps.setInt(2, bookId);
-						result = ps.executeUpdate();
-						System.out.println(result == 1 ?
-								"Book name: " + rs.getString("bookName") + " Quantity:" + quantity + " Borrowed Successfully" :
-								"Borrow Failed!");					
-						if(result == 1) {
-							String insertBorrowedQuery = "INSERT INTO borrowedbooks "
-									+ "(`userid`, `bookid`, `bookcount`, `borroweddate`, `bookfine`,`returnStatus`) "
-									+ "VALUES "
-									+ "(?,?,?,?,?,?)";						
-							ps = con.prepareStatement(insertBorrowedQuery);
-							ps.setInt(1, user.getId());
-							ps.setInt(2,bookId);
-							ps.setInt(3, quantity);
-							LocalDate date = LocalDate.now();
-							ps.setDate(4,Date.valueOf(date));
-							ps.setInt(5, 0);
-							ps.setInt(6, 1);
-							int insertResult = ps.executeUpdate();
-						}					
-					}else {
-						System.out.println("Enter valid book count!");
-					}
-					
+			int availableBooks = 0;
+			// Getting user choice of book id to be borrowed.
+			System.out.println("Enter the book Id: ");
+			int bookId = sc.nextInt();
+			// Checking whether the book id is available or not.
+			String searchBookByIdQuery = "select bookName, bookCount from books where bookId = ? and status = 1";
+			ps = con.prepareStatement(searchBookByIdQuery);
+			// Setting values into query.
+			ps.setInt(1, bookId);
+			// Executing the query.
+			ResultSet rs = ps.executeQuery(); 
+			int result = 0;
+			// If result set is not null,
+			// then there is a book with the id provided by user.
+			if(rs.next()) {
+				// Book exists
+				System.out.println(rs.getString("bookName") +"\t\t Count: "+rs.getInt("bookCount"));
+				// Displaying the bookname and bookcount for the book id provided by user. 
+				availableBooks = rs.getInt("bookCount");	
+				if(availableBooks > 0) // Checking the availabity of books
+				{ 
+					// If books is available
+					do {				
+						System.out.println("Enter the book quantity");
+						int quantity = sc.nextInt();
+						// Getting quantity of books to be borrowed from user.
+						if(quantity <= availableBooks && quantity > 0) {
+							// Checking user provided quantity is < than avaibooks and not negative number
+							isOrderPlaced = true;
+							// Updating books table by reducing the quantity borrowed from user.
+							String bookCountUpdateQuery = "UPDATE books SET bookCount = "
+														+ "? WHERE bookId = ? and status = 1";
+							ps = con.prepareStatement(bookCountUpdateQuery);
+							ps.setInt(1, availableBooks - quantity);
+							ps.setInt(2, bookId);
+							// Setting values
+							result = ps.executeUpdate();
+							// Executing the query.
+							System.out.println(result == 1 ?
+									"Book name: " + rs.getString("bookName") + " Quantity:" + quantity + " Borrowed Successfully" :
+									"Borrow Failed!");	
+							// Inserting a record into borrowedbooks with userid, bookid, bookcount, borroweddate, return status as 0.
+							if(result == 1) {
+								String insertBorrowedQuery = "INSERT INTO borrowedbooks "
+										+ "(`userid`, `bookid`, `bookcount`, `borroweddate`, `bookfine`,`returnStatus`) "
+										+ "VALUES "
+										+ "(?,?,?,?,?,?)";						
+								ps = con.prepareStatement(insertBorrowedQuery);
+								ps.setInt(1, user.getId());
+								ps.setInt(2,bookId);
+								ps.setInt(3, quantity);
+								LocalDate date = LocalDate.now();
+								ps.setDate(4,Date.valueOf(date));
+								ps.setInt(5, 0);
+								ps.setInt(6, 1);
+								// Setting value to query
+								int insertResult = ps.executeUpdate();
+								// Executing query.
+							}	
+						// If bookcount is more than avail books or negtive count entered else is executed.
+						}else {
+							System.out.println("Enter valid book count!");
+						}
 					}while(result != 1);
+				// Book not available temporily
+				}else {
+					System.out.println("Currently book not available");
+				}	
+			// Wrong book id.
 			}else {
-				System.out.println("Currently book not available");
-			}		
-		}else {
-			System.out.println("Enter a Valid Book ID");
-			isOrderPlaced = false;
-		}
-		}while(!isOrderPlaced);
+				System.out.println("Enter a Valid Book ID");
+				isOrderPlaced = false;
 			}
+		}while(!isOrderPlaced);
+	}
 
-	private void viewBorrowedBooks() throws SQLException {
-		System.out.println("You borrowed these books: ");
+	public void viewBorrowedBooks() throws SQLException {
+		System.out.println("VIEW BORROWED BOOKS");
+		// selecting bookname, bookcount and book id from books
+		// left joins with id.
 		String borrowedBookQuery = "select bookName,borrowedbooks.bookCount, borrowedbooks.borrowedid from books "
 				+ " left join borrowedbooks on books.bookId = borrowedbooks.bookId "
 				+ " where borrowedbooks.userid = ? and borrowedbooks.returnStatus = 1";
 		ps = con.prepareStatement(borrowedBookQuery);
 		ps.setInt(1, user.getId());
+		// Setting the values
 		ResultSet rs = ps.executeQuery();
-		while(rs.next()) {
+		// Executing the query.
+		if(rs.next()) {
+			// If resultset is not null
+			System.out.println("You borrowed these books: ");
 			System.out.println("Borrowed Id : " + rs.getString(3));
 			System.out.println("Book Name : " + rs.getString(1));
-			System.out.println("Book Count : "+rs.getInt(2));
+			System.out.println("Book Count : "+rs.getInt(2));	
+			while(rs.next()) {
+				System.out.println();
+				System.out.println("Borrowed Id : " + rs.getString(3));
+				System.out.println("Book Name : " + rs.getString(1));
+				System.out.println("Book Count : "+rs.getInt(2));
+			}		
 		}
+		else {
+			// If resultset is null
+			System.out.println("No Borrowed books found!!");
+		}	
 	}
 
-	private void viewFine() throws SQLException {
+	public void viewFine() throws SQLException {
+		System.out.println("VIEW FINE");
 		System.out.println("Calculating your fine...");
-		String calculateFineQuery = "select bookfine from borrowedbooks where userid = ?";
+		// Selecting the total sum for the particular id whose status is 0
+		String calculateFineQuery = "select sum(bookfine) as bookfine from borrowedbooks where userid = ?";
 		ps = con.prepareStatement(calculateFineQuery);
-		
+		// Setting values
 		ps.setInt(1, user.getId());
-		
+		// Executing the query
 		ResultSet rs = ps.executeQuery();
 		while(rs.next()) {
 			System.out.println("Your total fine amount is : "+rs.getInt("bookfine"));	
 		}
-		
 	}
 
-	private void returnBook() throws SQLException {
-		// quantity update
-		viewBorrowedBooks();
-		System.out.println("Enter the borrowed id to be returned..");
-		int borrowedId = sc.nextInt();
-		String searchBook = "select bookCount,borroweddate,borrowedid from borrowedbooks where borrowedid = ? and userid = ? and returnStatus = 1";
-		ps = con.prepareStatement(searchBook);
-		ps.setInt(1, borrowedId);
-		ps.setInt(2, user.getId());
-		ResultSet rs = ps.executeQuery();
-		System.out.println("Enter the number of books to be returned : ");
-		int returnCount = sc.nextInt();
-		
-		if(rs.next() && rs.getInt("borrowedid")==borrowedId && (returnCount <= rs.getInt("bookcount") && returnCount > 0)) {
-				LocalDate returnDate = LocalDate.now();
-				LocalDate borrowedDate = rs.getDate("borroweddate").toLocalDate();
-				Period difference = Period.between(borrowedDate,returnDate);
-				String updateStatus = "update borrowedbooks set returnStatus = 0, bookcount = ? where borrowedid = ?";
-				ps = con.prepareStatement(updateStatus);
-				ps.setInt(1, rs.getInt("bookcount")-returnCount);
-				ps.setInt(2, borrowedId);				
-				int returnResult = ps.executeUpdate();
-				System.out.println(returnResult==1?"Returned sucessfully!!":"Failed");
-				if(difference.getDays()>1) {
-					int extraDaysCount = difference.getDays()-1;
-					int oneDayFineAmount = 2;
-					int totalFine = extraDaysCount * oneDayFineAmount * returnCount;
-					String updateFineQuery = "update borrowedbooks set bookfine = ? where userid = ? and borrowedid = ?";
-					ps = con.prepareStatement(updateFineQuery);
-					ps.setInt(1, totalFine);
-					ps.setInt(2, user.getId());
-					ps.setInt(3, borrowedId);
-					int result = ps.executeUpdate();
-					System.out.println(result==1?"Fine Added!":"No fine!");
-				}
-				else {
-					System.out.println("No Fine!!");
-				}
-			
+	public void returnBook() throws SQLException {
+		System.out.println("RETURN BOOKS");	
+		// Selects the bookcount from borrowedbooks
+		String getBorrowedBookCount = " SELECT sum(bookCount) as bookCount from borrowedbooks where userid = ? ";
+		// Checking whether there is a book in that particular user id.
+		ps = con.prepareStatement(getBorrowedBookCount);
+		ps.setInt(1, user.getId());
+		// Setting the values into query
+		ResultSet res = ps.executeQuery();
+		// Executing the query
+		if(res.next() && res.getInt("bookCount") <= 0) {
+			// If bookcount is 0 and resultset is null, no books available in the user id.
+			System.out.println("No Borrowed Books to return");
 		}
+		else {
+			// If not null,
+			viewBorrowedBooks();
+			// Calling view borrowedbooks for displaying the book details.
+			System.out.println("Enter the borrowed id to be returned..");
+			int borrowedId = sc.nextInt();
+			// Getting input as borrowedid.
+			String searchBook = "select bookCount,borroweddate,borrowedid from borrowedbooks where borrowedid = ? and userid = ? "
+					+ "and returnStatus = 1";
+			// Selecting count,date,borrowid for that userid with status as 1.
+			ps = con.prepareStatement(searchBook);
+			ps.setInt(1, borrowedId);
+			ps.setInt(2, user.getId());
+			ResultSet rs = ps.executeQuery();
+			// Executing the query.
+			int returnCount = 0;
+			if(rs.next()) {
+				System.out.println("Enter the number of books to be returned : ");
+				returnCount = sc.nextInt();
+				// Getting the book quantity to be retuned.
+				if((returnCount <= rs.getInt("bookcount") && returnCount > 0)) {				
+					String updateStatus = "" ;					
+					if(rs.getInt("bookcount") == returnCount) {
+						updateStatus = "update borrowedbooks set returnStatus = 0, bookcount = ? where borrowedid = ?";	
+					}
+					else {
+						updateStatus = "update borrowedbooks set bookcount = ? where borrowedid = ? ";
+					}					
+					LocalDate returnDate = LocalDate.now();
+					// Finding return date
+					LocalDate borrowedDate = rs.getDate("borroweddate").toLocalDate();
+					Period difference = Period.between(borrowedDate,returnDate);
+					// Calculating the differemce between two dates.
+					ps = con.prepareStatement(updateStatus);
+					ps.setInt(1, rs.getInt("bookcount")-returnCount);
+					ps.setInt(2, borrowedId);
+					int returnResult = ps.executeUpdate();
+					// excuting the query to update borrowedbooks.
+					System.out.println(returnResult==1?"Returned sucessfully!!":"Failed");
+					// Calculating fine
+					if(difference.getDays()>10) {
+						// If days more than 10, adding fine for each day.
+						int extraDaysCount = difference.getDays()-10;
+						int oneDayFineAmount = 2;
+						int totalFine = extraDaysCount * oneDayFineAmount * returnCount;
+						// Total fine is calculated.
+						String updateFineQuery = "update borrowedbooks set bookfine = ? where userid = ? and borrowedid = ?";
+						// Updates the fine in borrowedbooks for the current userid.
+						ps = con.prepareStatement(updateFineQuery);
+						ps.setInt(1, totalFine);
+						ps.setInt(2, user.getId());
+						ps.setInt(3, borrowedId);
+						// Setting values into query.
+						int result = ps.executeUpdate();
+						// Executing the query.
+						System.out.println(result==1?"Fine Added!":"No fine!");
+					}
+					else {
+						System.out.println("No Fine!!");
+					}	
+				}			
+			}
 			else {
 				System.out.println("Invalid operation performed");
 			}
-		
+		}	
 	}
 }
